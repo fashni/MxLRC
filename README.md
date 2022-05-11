@@ -8,4 +8,4 @@ eg. `python3 lrc_gen.py --artist "The Cure" --title "Just Like Heaven"`
 
 
 # Musixmatch Token
-Follow the guide [here](https://spicetify.app/docs/faq#sometimes-popup-lyrics-andor-lyrics-plus-seem-to-not-work) to get the new Musixmatch token.
+Follow the guide [here](https://spicetify.app/docs/faq#sometimes-popup-lyrics-andor-lyrics-plus-seem-to-not-work) to get the new Musixmatch token, then put the token as `MX_TOKEN` variable in the code.

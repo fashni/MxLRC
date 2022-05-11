@@ -1,8 +1,9 @@
 import argparse
 import json
 import math
-import urllib.error 
-import urllib.parse 
+import os
+import urllib.error
+import urllib.parse
 import urllib.request
 
 
@@ -76,7 +77,7 @@ class Musixmatch:
     return song
 
   @staticmethod
-  def gen_lrc(song):
+  def gen_lrc(song, outdir='lyrics'):
     if song.subtitles is None:
       return
     tags = [
@@ -92,12 +93,19 @@ class Musixmatch:
     lrc = [f"[{line['minutes']:02d}:{line['seconds']:02d}.{line['hundredths']:02d}]{line['text']}" for line in song.subtitles]
     lines = tags+lrc
 
-    filename = f"{song.artist} - {song.title}.lrc"
-    with open(filename, "w", encoding="utf-8") as f:
+    try:
+      os.mkdir(outdir)
+    except FileExistsError:
+      if not os.path.isdir(outdir):
+        outdir += '_dir'
+        os.mkdir(outdir)
+
+    filepath = os.path.join(outdir, f"{song.artist} - {song.title}.lrc")
+    with open(filepath, "w", encoding="utf-8") as f:
       for line in lines:
         f.write(line + '\n')
 
-    print("Lyrics saved:", filename)
+    print("Lyrics saved:", filepath)
 
 
 class Song:
@@ -134,11 +142,12 @@ def main():
   MX_TOKEN = "2203269256ff7abcb649269df00e14c833dbf4ddfb5b36a1aae8b0"
 
   parser = argparse.ArgumentParser(description='Fetch synced lyrics (*.lrc file) from Musixmatch')
-  parser.add_argument('--artist', help="Artist name", action="store", type=str)
-  parser.add_argument('--title', help="Song title", action="store", type=str)
+  parser.add_argument('TITLE', help="song title", action="store", type=str)
+  parser.add_argument('ARTIST', help="artist name", action="store", type=str)
+  parser.add_argument('-o', '--output', metavar='DIR', help="output directory", default="lyrics", action="store", type=str)
   args = parser.parse_args()
 
-  song = Song(args.artist or "", args.title or "")
+  song = Song(args.ARTIST or "", args.TITLE or "")
 
   mx = Musixmatch(MX_TOKEN)
   body = mx.find_lyrics(song)
@@ -149,7 +158,7 @@ def main():
 
   song.update_info(body)
   mx.get_synced(song, body)
-  mx.gen_lrc(song)
+  mx.gen_lrc(song, outdir=args.output)
 
 if __name__ == "__main__":
   main()

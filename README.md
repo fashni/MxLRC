@@ -3,24 +3,31 @@ Fetch synced lyrics from Musixmatch and save it as *.lrc file
 
 # Usage
 ```
-python3 lrc_gen.py [-h] [-o DIR] TITLE ARTIST
-
-positional arguments:
-  TITLE                 song title
-  ARTIST                artist name
+python3 lrc_gen.py [-h] -s SONG [SONG ...] [-o OUTDIR] [-t WTIME]
 
 optional arguments:
   -h, --help            show this help message and exit
-  -o DIR, --output DIR  output directory
+  -s SONG [SONG ...], --song SONG [SONG ...]
+                        song information in the format [ artist,title ]
+  -o OUTDIR, --out OUTDIR
+                        output directory, default: lyrics
+  -t WTIME              wait time (seconds) in between request, default: 1
 ```
 
 Example:
 ```
-python3 lrc_gen.py Radiohead Creep
-```
-```
-python3 lrc_gen.py "The Cure" "Just Like Heaven" -o folder
+# One song
+python3 lrc_gen.py -s adele,hello
+
+# Multiple song and custom output directory
+python3 lrc_gen.py -s adele,hello radiohead,creep -o some_directory
+
+# With a text file and longer wait time (recommended)
+python3 lrc_gen.py -s example_input.txt -t 10
 ```
 
 # Musixmatch Token
 Follow the guide [here](https://spicetify.app/docs/faq#sometimes-popup-lyrics-andor-lyrics-plus-seem-to-not-work) to get the new Musixmatch token, then put the token as `MX_TOKEN` variable in the code.
+
+# Credits
+* [Spicetify Lyrics Plus](https://github.com/spicetify/spicetify-cli/tree/master/CustomApps/lyrics-plus)

@@ -2,6 +2,7 @@ import argparse
 import json
 import math
 import os
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -40,7 +41,7 @@ class Musixmatch:
     # print(body)
 
     if body["matcher.track.get"]["message"]["header"]["status_code"]!=200:
-      print(f"Requested error: {body['matcher.track.get']['message']['header']['status_code']} {body['matcher.track.get']['message']['header']['mode']}")
+      print(f"Requested error: {body['matcher.track.get']['message']['header']}")
       return
     elif isinstance(body["track.lyrics.get"]["message"]["body"], dict):
       if body["track.lyrics.get"]["message"]["body"]["lyrics"]["restricted"]:
@@ -100,7 +101,7 @@ class Musixmatch:
         outdir += '_dir'
         os.mkdir(outdir)
 
-    filepath = os.path.join(outdir, f"{song.artist} - {song.title}.lrc")
+    filepath = os.path.join(outdir, f"{song}.lrc")
     with open(filepath, "w", encoding="utf-8") as f:
       for line in lines:
         f.write(line + '\n')
@@ -122,6 +123,9 @@ class Song:
     self.subtitles = None
     self.coverart_url = None
 
+  def __str__(self) -> str:
+    return self.artist+' - '+self.title
+
   def update_info(self, body):
     meta = body["matcher.track.get"]["message"]["body"]
     if not meta:
@@ -138,27 +142,47 @@ class Song:
     self.is_instrumental = meta["track"]["instrumental"]
 
 
-def main():
-  MX_TOKEN = "2203269256ff7abcb649269df00e14c833dbf4ddfb5b36a1aae8b0"
-
+def parse_args():
   parser = argparse.ArgumentParser(description='Fetch synced lyrics (*.lrc file) from Musixmatch')
-  parser.add_argument('TITLE', help="song title", action="store", type=str)
-  parser.add_argument('ARTIST', help="artist name", action="store", type=str)
-  parser.add_argument('-o', '--output', metavar='DIR', help="output directory", default="lyrics", action="store", type=str)
-  args = parser.parse_args()
+  parser.add_argument('-s', '--song', dest='song', help='song information in the format [ artist,title ]', nargs='+', required=True)
+  parser.add_argument('-o', '--out', dest='outdir', help="output directory", default="lyrics", action="store", type=str)
+  parser.add_argument('-t', dest='wtime', help="wait time (seconds) in between request", default=1, action="store", type=float)
+  return parser.parse_args()
 
-  song = Song(args.ARTIST or "", args.TITLE or "")
-
-  mx = Musixmatch(MX_TOKEN)
+def get_lrc(mx, song):
   body = mx.find_lyrics(song)
-
   if body is None:
-    print("Lyrics not found")
+    print("Lyrics not found:", song)
     return
-
   song.update_info(body)
   mx.get_synced(song, body)
-  mx.gen_lrc(song, outdir=args.output)
+  mx.gen_lrc(song, outdir=args.outdir)
+
+def main(args):
+  MX_TOKEN = "2203269256ff7abcb649269df00e14c833dbf4ddfb5b36a1aae8b0"
+  mx = Musixmatch(MX_TOKEN)
+
+  if len(args.song)==1 and os.path.isfile(args.song[0]):
+    with open(args.song[0], 'r', encoding='utf-8') as f:
+      songs = f.readlines()
+    songs = [s.replace('\n', '') for s in songs]
+  else:
+    songs = args.song
+
+  for s in songs:
+    try:
+      artist, title = s.split(',')
+    except ValueError:
+      print('Invalid parameter:', s)
+      continue
+
+    song = Song(artist or "", title or "")
+    get_lrc(mx, song)
+
+    if len(songs)>1:
+      time.sleep(args.wtime)
+
 
 if __name__ == "__main__":
-  main()
+  args = parse_args()
+  main(args)

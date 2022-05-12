@@ -12,6 +12,7 @@ optional arguments:
   -o OUTDIR, --out OUTDIR
                         output directory, default: lyrics
   -t WTIME              wait time (seconds) in between request, default: 1
+  --token TOKEN         musixmatch token
 ```
 
 Example:
@@ -27,7 +28,7 @@ python3 lrc_gen.py -s example_input.txt -t 10
 ```
 
 # Musixmatch Token
-Follow the guide [here](https://spicetify.app/docs/faq#sometimes-popup-lyrics-andor-lyrics-plus-seem-to-not-work) to get the new Musixmatch token, then put the token as `MX_TOKEN` variable in the code.
+Follow the guide [here](https://spicetify.app/docs/faq#sometimes-popup-lyrics-andor-lyrics-plus-seem-to-not-work) to get a new Musixmatch token.
 
 # Credits
 * [Spicetify Lyrics Plus](https://github.com/spicetify/spicetify-cli/tree/master/CustomApps/lyrics-plus)

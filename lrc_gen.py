@@ -37,8 +37,12 @@ class Musixmatch:
     except (urllib.error.HTTPError, urllib.error.URLError) as e:
       print(repr(e))
       return
-    body = json.loads(response.decode())["message"]["body"]["macro_calls"]
-    # print(body)
+
+    r = json.loads(response.decode())
+    if r['message']['header']['status_code']!=200 and r['message']['header'].get('hint')=='renew':
+      print("Invalid token")
+      return
+    body = r["message"]["body"]["macro_calls"]
 
     if body["matcher.track.get"]["message"]["header"]["status_code"]!=200:
       print(f"Requested error: {body['matcher.track.get']['message']['header']}")
@@ -147,6 +151,7 @@ def parse_args():
   parser.add_argument('-s', '--song', dest='song', help='song information in the format [ artist,title ]', nargs='+', required=True)
   parser.add_argument('-o', '--out', dest='outdir', help="output directory, default: lyrics", default="lyrics", action="store", type=str)
   parser.add_argument('-t', dest='wtime', help="wait time (seconds) in between request, default: 1", default=1, action="store", type=float)
+  parser.add_argument('--token', dest='token', help="musixmatch token", type=str)
   return parser.parse_args()
 
 def get_lrc(mx, song, outdir):
@@ -159,7 +164,7 @@ def get_lrc(mx, song, outdir):
   mx.gen_lrc(song, outdir=outdir)
 
 def main(args):
-  MX_TOKEN = "2203269256ff7abcb649269df00e14c833dbf4ddfb5b36a1aae8b0"
+  MX_TOKEN = args.token if args.token else "2203269256ff7abcb649269df00e14c833dbf4ddfb5b36a1aae8b0"
   mx = Musixmatch(MX_TOKEN)
 
   if len(args.song)==1 and os.path.isfile(args.song[0]):

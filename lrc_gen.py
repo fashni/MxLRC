@@ -145,18 +145,18 @@ class Song:
 def parse_args():
   parser = argparse.ArgumentParser(description='Fetch synced lyrics (*.lrc file) from Musixmatch')
   parser.add_argument('-s', '--song', dest='song', help='song information in the format [ artist,title ]', nargs='+', required=True)
-  parser.add_argument('-o', '--out', dest='outdir', help="output directory", default="lyrics", action="store", type=str)
-  parser.add_argument('-t', dest='wtime', help="wait time (seconds) in between request", default=1, action="store", type=float)
+  parser.add_argument('-o', '--out', dest='outdir', help="output directory, default: lyrics", default="lyrics", action="store", type=str)
+  parser.add_argument('-t', dest='wtime', help="wait time (seconds) in between request, default: 1", default=1, action="store", type=float)
   return parser.parse_args()
 
-def get_lrc(mx, song):
+def get_lrc(mx, song, outdir):
   body = mx.find_lyrics(song)
   if body is None:
     print("Lyrics not found:", song)
     return
   song.update_info(body)
   mx.get_synced(song, body)
-  mx.gen_lrc(song, outdir=args.outdir)
+  mx.gen_lrc(song, outdir=outdir)
 
 def main(args):
   MX_TOKEN = "2203269256ff7abcb649269df00e14c833dbf4ddfb5b36a1aae8b0"
@@ -177,7 +177,7 @@ def main(args):
       continue
 
     song = Song(artist or "", title or "")
-    get_lrc(mx, song)
+    get_lrc(mx, song, args.outdir)
 
     if len(songs)>1:
       time.sleep(args.wtime)

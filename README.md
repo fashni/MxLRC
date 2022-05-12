@@ -14,8 +14,13 @@ optional arguments:
   -o DIR, --output DIR  output directory
 ```
 
-eg. `python3 lrc_gen.py "The Cure" "Just Like Heaven"`
-
+Example:
+```
+python3 lrc_gen.py Radiohead Creep
+```
+```
+python3 lrc_gen.py "The Cure" "Just Like Heaven" -o folder
+```
 
 # Musixmatch Token
 Follow the guide [here](https://spicetify.app/docs/faq#sometimes-popup-lyrics-andor-lyrics-plus-seem-to-not-work) to get the new Musixmatch token, then put the token as `MX_TOKEN` variable in the code.

@@ -98,13 +98,6 @@ class Musixmatch:
     lrc = [f"[{line['minutes']:02d}:{line['seconds']:02d}.{line['hundredths']:02d}]{line['text']}" for line in song.subtitles]
     lines = tags+lrc
 
-    try:
-      os.mkdir(outdir)
-    except FileExistsError:
-      if not os.path.isdir(outdir):
-        outdir += '_dir'
-        os.mkdir(outdir)
-
     filepath = os.path.join(outdir, f"{song}.lrc")
     with open(filepath, "w", encoding="utf-8") as f:
       for line in lines:
@@ -152,7 +145,22 @@ def parse_args():
   parser.add_argument('-o', '--out', dest='outdir', help="output directory, default: lyrics", default="lyrics", action="store", type=str)
   parser.add_argument('-t', dest='wtime', help="wait time (seconds) in between request, default: 1", default=1, action="store", type=float)
   parser.add_argument('--token', dest='token', help="musixmatch token", type=str)
-  return parser.parse_args()
+  args = parser.parse_args()
+
+  if len(args.song)==1 and os.path.isfile(args.song[0]):
+    with open(args.song[0], 'r', encoding='utf-8') as f:
+      songs = f.readlines()
+    args.songs = [s.replace('\n', '') for s in songs]
+  else:
+    args.songs = args.song
+
+  try:
+    os.mkdir(args.outdir)
+  except FileExistsError:
+    if not os.path.isdir(args.outdir):
+      args.outdir += "_dir"
+      os.mkdir(args.outdir)
+  return args
 
 def get_lrc(mx, song, outdir):
   body = mx.find_lyrics(song)
@@ -167,14 +175,7 @@ def main(args):
   MX_TOKEN = args.token if args.token else "2203269256ff7abcb649269df00e14c833dbf4ddfb5b36a1aae8b0"
   mx = Musixmatch(MX_TOKEN)
 
-  if len(args.song)==1 and os.path.isfile(args.song[0]):
-    with open(args.song[0], 'r', encoding='utf-8') as f:
-      songs = f.readlines()
-    songs = [s.replace('\n', '') for s in songs]
-  else:
-    songs = args.song
-
-  for s in songs:
+  for s in args.songs:
     try:
       artist, title = s.split(',')
     except ValueError:
@@ -184,7 +185,7 @@ def main(args):
     song = Song(artist or "", title or "")
     get_lrc(mx, song, args.outdir)
 
-    if len(songs)>1:
+    if len(args.songs)>1:
       time.sleep(args.wtime)
 
 

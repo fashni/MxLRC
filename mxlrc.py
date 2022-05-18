@@ -160,7 +160,7 @@ def parse_args():
   parser = argparse.ArgumentParser(description='Fetch synced lyrics (*.lrc file) from Musixmatch')
   parser.add_argument('-s', '--song', dest='song', help='song information in the format [ artist,title ]', nargs='+', required=True)
   parser.add_argument('-o', '--out', dest='outdir', help="output directory, default: lyrics", default="lyrics", action="store", type=str)
-  parser.add_argument('-t', dest='wtime', help="wait time (seconds) in between request, default: 30", default=1, action="store", type=int)
+  parser.add_argument('-t', dest='wtime', help="wait time (seconds) in between request, default: 30", default=30, action="store", type=int)
   parser.add_argument('--token', dest='token', help="musixmatch token", type=str)
   parser.add_argument('--debug', dest='debug', help=argparse.SUPPRESS, action="store_true")
   args = parser.parse_args()
@@ -211,7 +211,7 @@ def main(args):
 
     if idx+1<len(args.songs):
       for sec in range(args.wtime,-1,-1):
-        print(f'    Please wait... {sec}s', end='\r')
+        print(f'    Please wait... {sec}s    ', end='\r')
         time.sleep(1)
       print('')
 

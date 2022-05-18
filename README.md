@@ -34,5 +34,8 @@ You can also use the Python script directly. Make sure you have Python 3.6+ inst
 ## How to get the Musixmatch Token
 Follow steps 1 to 5 from the guide [here](https://spicetify.app/docs/faq#sometimes-popup-lyrics-andor-lyrics-plus-seem-to-not-work) to get a new Musixmatch token.
 
+## To Do
+- [ ] Directory containing music files as input
+
 ## Credits
 * [Spicetify Lyrics Plus](https://github.com/spicetify/spicetify-cli/tree/master/CustomApps/lyrics-plus)

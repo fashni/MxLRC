@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import math
 import os
 import time
@@ -35,35 +36,41 @@ class Musixmatch:
     try:
       response = urllib.request.urlopen(req).read()
     except (urllib.error.HTTPError, urllib.error.URLError) as e:
-      print(repr(e))
+      logging.error(repr(e))
       return
 
     r = json.loads(response.decode())
     if r['message']['header']['status_code']!=200 and r['message']['header'].get('hint')=='renew':
-      print("Invalid token")
+      logging.error("Invalid token")
       return
     body = r["message"]["body"]["macro_calls"]
+    logging.debug(body)
 
-    if body["matcher.track.get"]["message"]["header"]["status_code"]!=200:
-      print(f"Requested error: {body['matcher.track.get']['message']['header']}")
+    if body["matcher.track.get"]["message"]["header"]["status_code"] != 200:
+      if body["matcher.track.get"]["message"]["header"]["status_code"] == 404:
+        logging.info('Song not found.')
+      elif body["matcher.track.get"]["message"]["header"]["status_code"] == 401:
+        logging.warning('Timed out. Change the token or wait a few minutes before trying again.')
+      else:
+        logging.error(f"Requested error: {body['matcher.track.get']['message']['header']}")
       return
     elif isinstance(body["track.lyrics.get"]["message"]["body"], dict):
       if body["track.lyrics.get"]["message"]["body"]["lyrics"]["restricted"]:
-        print("Restricted")
+        logging.warning("Restricted")
         return
     return body
 
   def get_unsynced(self, song, body):
     if song.is_instrumental:
-      lines = [{"text": "♪ Instrumental ♪"}]
+      lines = [{"text": "♪ Instrumental ♪", "minutes": 0, "seconds": 0, "hundredths": 0}]
     elif song.has_unsynced:
       lyrics = body["track.lyrics.get"]["message"]["body"]["lyrics"]["lyrics_body"] #if isinstance(body["track.lyrics.get"]["message"]["body"], dict) else ""
       if lyrics:
-        lines = [{"text": line} for line in list(filter(None, lyrics.split('\n')))]
+        lines = [{"text": line, "minutes": 0, "seconds": 0, "hundredths": 0} for line in list(filter(None, lyrics.split('\n')))]
       else:
-        lines = [{"text": ""}]
+        lines = [{"text": "", "minutes": 0, "seconds": 0, "hundredths": 0}]
     else:
-      lines = [{"text": ""}]
+      lines = None
     song.lyrics = lines
     return song
 
@@ -77,14 +84,20 @@ class Musixmatch:
       else:
         lines = [{"text": "", "minutes": 0, "seconds": 0, "hundredths": 0}]
     else:
-      lines = [{"text": "", "minutes": 0, "seconds": 0, "hundredths": 0}]
+      lines = None
     song.subtitles = lines
     return song
 
   @staticmethod
   def gen_lrc(song, outdir='lyrics'):
-    if song.subtitles is None:
-      return
+    lyrics = song.subtitles
+    if lyrics is None:
+      logging.warning("Synced lyrics not found, using unsynced lyrics...")
+      lyrics = song.lyrics
+      if lyrics is None:
+        logging.warning("Unsynced lyrics not found")
+        return
+    logging.info("Formatting lyrics")
     tags = [
       f"[by:fashni]",
       f"[ar:{song.artist}]",
@@ -95,7 +108,7 @@ class Musixmatch:
     if song.duration:
       tags.append(f"[length:{int((song.duration/1000)//60):02d}:{int((song.duration/1000)%60):02d}]")
 
-    lrc = [f"[{line['minutes']:02d}:{line['seconds']:02d}.{line['hundredths']:02d}]{line['text']}" for line in song.subtitles]
+    lrc = [f"[{line['minutes']:02d}:{line['seconds']:02d}.{line['hundredths']:02d}]{line['text']}" for line in lyrics]
     lines = tags+lrc
 
     filepath = os.path.join(outdir, f"{song}.lrc")
@@ -103,10 +116,10 @@ class Musixmatch:
       for line in lines:
         f.write(line + '\n')
 
-    print("Lyrics saved:", filepath)
+    logging.info(f"Lyrics saved: {filepath}")
 
 
-class Song:
+class Song(object):
   def __init__(self, artist, title, album="", uri=""):
     self.artist = artist
     self.title = title
@@ -122,6 +135,10 @@ class Song:
 
   def __str__(self) -> str:
     return self.artist+' - '+self.title
+
+  @property
+  def info(self):
+    return self.__dict__
 
   def update_info(self, body):
     meta = body["matcher.track.get"]["message"]["body"]
@@ -143,9 +160,12 @@ def parse_args():
   parser = argparse.ArgumentParser(description='Fetch synced lyrics (*.lrc file) from Musixmatch')
   parser.add_argument('-s', '--song', dest='song', help='song information in the format [ artist,title ]', nargs='+', required=True)
   parser.add_argument('-o', '--out', dest='outdir', help="output directory, default: lyrics", default="lyrics", action="store", type=str)
-  parser.add_argument('-t', dest='wtime', help="wait time (seconds) in between request, default: 1", default=1, action="store", type=float)
+  parser.add_argument('-t', dest='wtime', help="wait time (seconds) in between request, default: 30", default=1, action="store", type=int)
   parser.add_argument('--token', dest='token', help="musixmatch token", type=str)
+  parser.add_argument('--debug', dest='debug', help=argparse.SUPPRESS, action="store_true")
   args = parser.parse_args()
+
+  logging.basicConfig(format='%(asctime)s - [%(levelname)s] - %(message)s', level=logging.DEBUG if args.debug else logging.INFO)
 
   if len(args.song)==1 and os.path.isfile(args.song[0]):
     with open(args.song[0], 'r', encoding='utf-8') as f:
@@ -163,30 +183,37 @@ def parse_args():
   return args
 
 def get_lrc(mx, song, outdir):
+  logging.info(f"Searching song: {song}")
   body = mx.find_lyrics(song)
   if body is None:
-    print("Lyrics not found:", song)
     return
   song.update_info(body)
+  logging.info(f"Song found: {song}")
+  logging.info(f"Searching lyrics: {song}")
   mx.get_synced(song, body)
+  mx.get_unsynced(song, body)
   mx.gen_lrc(song, outdir=outdir)
+  logging.debug(song.info)
 
 def main(args):
   MX_TOKEN = args.token if args.token else "2203269256ff7abcb649269df00e14c833dbf4ddfb5b36a1aae8b0"
   mx = Musixmatch(MX_TOKEN)
 
-  for s in args.songs:
+  for idx, s in enumerate(args.songs):
     try:
       artist, title = s.split(',')
     except ValueError:
-      print('Invalid parameter:', s)
+      logging.error('Invalid parameter:', s)
       continue
 
     song = Song(artist or "", title or "")
     get_lrc(mx, song, args.outdir)
 
-    if len(args.songs)>1:
-      time.sleep(args.wtime)
+    if idx+1<len(args.songs):
+      for sec in range(args.wtime,-1,-1):
+        print(f'    Please wait... {sec}s', end='\r')
+        time.sleep(1)
+      print('')
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 Command line tool to fetch synced lyrics from [Musixmatch](https://www.musixmatch.com/) and save it as *.lrc file.
 
 ## Downloads
-Windows binary https://github.com/fashni/lrc-generator/releases
+Windows binary https://github.com/fashni/MxLRC/releases
 
 ## Usage
 ```

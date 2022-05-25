@@ -8,6 +8,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from tinytag import TinyTag
+
 
 class Musixmatch:
   base_url = "https://apic-desktop.musixmatch.com/ws/1.1/macro.subtitles.get?format=json&namespace=lyrics_richsynched&subtitle_format=mxm&app_id=web-desktop-app-v1.0&"
@@ -54,13 +56,14 @@ class Musixmatch:
       else:
         logging.error(f"Requested error: {body['matcher.track.get']['message']['header']}")
       return
-    elif isinstance(body["track.lyrics.get"]["message"]["body"], dict):
+    elif isinstance(body["track.lyrics.get"]["message"].get("body"), dict):
       if body["track.lyrics.get"]["message"]["body"]["lyrics"]["restricted"]:
-        logging.warning("Restricted")
+        logging.info("Restricted lyrics.")
         return
     return body
 
-  def get_unsynced(self, song, body):
+  @staticmethod
+  def get_unsynced(song, body):
     if song.is_instrumental:
       lines = [{"text": "♪ Instrumental ♪", "minutes": 0, "seconds": 0, "hundredths": 0}]
     elif song.has_unsynced:
@@ -74,7 +77,8 @@ class Musixmatch:
     song.lyrics = lines
     return song
 
-  def get_synced(self, song, body):
+  @staticmethod
+  def get_synced(song, body):
     if song.is_instrumental:
       lines = [{"text": "♪ Instrumental ♪", "minutes": 0, "seconds": 0, "hundredths": 0}]
     elif song.has_synced:
@@ -89,7 +93,7 @@ class Musixmatch:
     return song
 
   @staticmethod
-  def gen_lrc(song, outdir='lyrics'):
+  def gen_lrc(song, outdir='lyrics', filename=''):
     lyrics = song.subtitles
     if lyrics is None:
       logging.warning("Synced lyrics not found, using unsynced lyrics...")
@@ -111,11 +115,11 @@ class Musixmatch:
     lrc = [f"[{line['minutes']:02d}:{line['seconds']:02d}.{line['hundredths']:02d}]{line['text']}" for line in lyrics]
     lines = tags+lrc
 
-    filepath = os.path.join(outdir, f"{song}.lrc")
+    fn = filename or f"{song}.lrc"
+    filepath = os.path.join(outdir, fn)
     with open(filepath, "w", encoding="utf-8") as f:
       for line in lines:
         f.write(line + '\n')
-
     logging.info(f"Lyrics saved: {filepath}")
 
 
@@ -158,22 +162,22 @@ class Song(object):
 
 def parse_args():
   parser = argparse.ArgumentParser(description='Fetch synced lyrics (*.lrc file) from Musixmatch')
-  parser.add_argument('-s', '--song', dest='song', help='song information in the format [ artist,title ]', nargs='+', required=True)
+  parser.add_argument('-s', '--song', dest='song', help='song information in the format [ artist,title ], a text file containing list of songs, or a directory containing the song files', nargs='+', required=True)
   parser.add_argument('-o', '--out', dest='outdir', help="output directory, default: lyrics", default="lyrics", action="store", type=str)
-  parser.add_argument('-t', dest='wtime', help="wait time (seconds) in between request, default: 30", default=30, action="store", type=int)
+  parser.add_argument('-t', '--sleep', dest='sleep', help="sleep time (seconds) in between request, default: 30", default=30, action="store", type=int)
   parser.add_argument('--token', dest='token', help="musixmatch token", type=str)
   parser.add_argument('--debug', dest='debug', help=argparse.SUPPRESS, action="store_true")
   args = parser.parse_args()
 
   logging.basicConfig(format='%(asctime)s - [%(levelname)s] - %(message)s', level=logging.DEBUG if args.debug else logging.INFO)
 
-  if len(args.song)==1 and os.path.isfile(args.song[0]):
-    with open(args.song[0], 'r', encoding='utf-8') as f:
-      songs = f.readlines()
-    args.songs = [s.replace('\n', '') for s in songs]
-  else:
-    args.songs = args.song
+  args.songs, mode = parse_input(args.song)
+  if args.songs['count'] == 0:
+    logging.warning("No valid input provided, exiting...")
+    return
 
+  if mode=='dir':
+    args.outdir = args.song[0]
   try:
     os.mkdir(args.outdir)
   except FileExistsError:
@@ -182,7 +186,54 @@ def parse_args():
       os.mkdir(args.outdir)
   return args
 
-def get_lrc(mx, song, outdir):
+def parse_input(argsong):
+  def get_song_dir(directory):
+    files = [f for f in os.scandir(directory) if f.is_file() and TinyTag.is_supported(f.path)]
+    songs = {'filenames': [], 'artists': [], 'titles': [], 'count': 0}
+    for f in files:
+      song_file = TinyTag.get(f.path)
+      songs['filenames'].append(os.path.splitext(f.name)[0]+'.lrc')
+      songs['artists'].append(song_file.artist)
+      songs['titles'].append(song_file.title)
+      songs['count'] += 1
+    return songs
+
+  def get_song_txt(txt):
+    with open(txt, 'r', encoding='utf-8') as f:
+      song_list = [s.replace('\n', '') for s in f.readlines()]
+    return get_song_multi(song_list)
+
+  def get_song_multi(song_list):
+    songs = {'filenames': [], 'artists': [], 'titles': [], 'count': 0}
+    for song in song_list:
+      artist, title = validate_input(song)
+      if artist is None or title is None:
+        continue
+      songs['filenames'].append('')
+      songs['artists'].append(artist)
+      songs['titles'].append(title)
+      songs['count'] += 1
+    return songs
+
+  def validate_input(inp):
+    try:
+      artist, title = inp.split(',')
+    except ValueError:
+      logging.error(f"Invalid input: {inp}")
+      return None, None
+    return artist, title
+
+  if len(argsong) == 1:
+    if os.path.isdir(argsong[0]):
+      logging.debug('Mode: Directory')
+      return get_song_dir(argsong[0]), "dir"
+    if os.path.isfile(argsong[0]):
+      logging.debug('Mode: Text')
+      return get_song_txt(argsong[0]), "text"
+  logging.debug('Mode: CLI')
+  return get_song_multi(argsong), "cli"
+
+def get_lrc(mx, song, outdir, fn=''):
   logging.info(f"Searching song: {song}")
   body = mx.find_lyrics(song)
   if body is None:
@@ -192,25 +243,19 @@ def get_lrc(mx, song, outdir):
   logging.info(f"Searching lyrics: {song}")
   mx.get_synced(song, body)
   mx.get_unsynced(song, body)
-  mx.gen_lrc(song, outdir=outdir)
+  mx.gen_lrc(song, outdir=outdir, filename=fn)
   logging.debug(song.info)
 
 def main(args):
   MX_TOKEN = args.token if args.token else "2203269256ff7abcb649269df00e14c833dbf4ddfb5b36a1aae8b0"
   mx = Musixmatch(MX_TOKEN)
 
-  for idx, s in enumerate(args.songs):
-    try:
-      artist, title = s.split(',')
-    except ValueError:
-      logging.error('Invalid parameter:', s)
-      continue
+  for idx, (ar, ti, fn) in enumerate(zip(args.songs['artists'], args.songs['titles'], args.songs['filenames'])):
+    song = Song(ar or "", ti or "")
+    get_lrc(mx, song, args.outdir, fn)
 
-    song = Song(artist or "", title or "")
-    get_lrc(mx, song, args.outdir)
-
-    if idx+1<len(args.songs):
-      for sec in range(args.wtime,-1,-1):
+    if idx+1<args.songs['count']:
+      for sec in range(args.sleep,-1,-1):
         print(f'    Please wait... {sec}s    ', end='\r')
         time.sleep(1)
       print('')
@@ -218,4 +263,5 @@ def main(args):
 
 if __name__ == "__main__":
   args = parse_args()
-  main(args)
+  if args is not None:
+    main(args)

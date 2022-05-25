@@ -50,7 +50,7 @@ mxlrc -s example_input.txt -t 20
 ```
 mxlrc -s "Dream Theater/Images and Words (1992)" -t 20
 ```
-**_This option overrides the `-o/--outdir` argument which means the lyrics will be saved in the same directory as the given input._**
+> **_This option overrides the `-o/--outdir` argument which means the lyrics will be saved in the same directory as the given input._**
 
 ---
 

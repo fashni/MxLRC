@@ -54,7 +54,7 @@ class Musixmatch:
       elif body["matcher.track.get"]["message"]["header"]["status_code"] == 401:
         logging.warning('Timed out. Change the token or wait a few minutes before trying again.')
       else:
-        logging.error(f"Requested error: {body['matcher.track.get']['message']['header']}")
+        logging.error(f'Requested error: {body["matcher.track.get"]["message"]["header"]}')
       return
     elif isinstance(body["track.lyrics.get"]["message"].get("body"), dict):
       if body["track.lyrics.get"]["message"]["body"]["lyrics"]["restricted"]:
@@ -172,6 +172,7 @@ def parse_args():
   logging.basicConfig(format='%(asctime)s - [%(levelname)s] - %(message)s', level=logging.DEBUG if args.debug else logging.INFO)
 
   args.songs, mode = parse_input(args.song)
+  logging.debug(args.songs)
   if args.songs['count'] == 0:
     logging.warning("No valid input provided, exiting...")
     return
@@ -192,6 +193,9 @@ def parse_input(argsong):
     songs = {'filenames': [], 'artists': [], 'titles': [], 'count': 0}
     for f in files:
       song_file = TinyTag.get(f.path)
+      if not (song_file.artist and song_file.title):
+        logging.warning(f'Cannot parse song info from "{f.name}", skipping...')
+        continue
       songs['filenames'].append(os.path.splitext(f.name)[0]+'.lrc')
       songs['artists'].append(song_file.artist)
       songs['titles'].append(song_file.title)
@@ -244,7 +248,6 @@ def get_lrc(mx, song, outdir, fn=''):
   mx.get_synced(song, body)
   mx.get_unsynced(song, body)
   mx.gen_lrc(song, outdir=outdir, filename=fn)
-  logging.debug(song.info)
 
 def main(args):
   MX_TOKEN = args.token if args.token else "2203269256ff7abcb649269df00e14c833dbf4ddfb5b36a1aae8b0"

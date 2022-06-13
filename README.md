@@ -18,19 +18,27 @@ pip install -r requirements.txt
 
 ## Usage
 ```
-mxlrc [-h] -s SONG [SONG ...] [-o OUTDIR] [-t WTIME]
+usage: mxlrc.py [-h] -s SONG [SONG ...] [-o OUTDIR] [-t SLEEP] [-d DEPTH] [-u]
+                [--bfs] [-q] [--token TOKEN]
+
+Fetch synced lyrics (*.lrc file) from Musixmatch
 
 optional arguments:
-  -h, --help            show this help message and exit
+  -h, --help              show this help message and exit
   -s SONG [SONG ...], --song SONG [SONG ...]
-                        song information in the format [ artist,title ], a
-                        text file containing list of songs, or a folder
-                        containing the song files
-  -o OUTDIR, --out OUTDIR
-                        output directory, default: lyrics
-  -t SLEEP, --sleep SLEEP
-                        sleep time (seconds) in between request, default: 30
-  --token TOKEN         musixmatch token
+                          song information in the format [ artist,title ], a
+                          text file containing list of songs, or a directory
+                          containing the song files
+  -o OUTDIR, --out OUTDIR output directory to save the .lrc file(s), default:
+                          lyrics
+  -t SLEEP, --sleep SLEEP sleep time (seconds) in between request, default: 30
+  -d DEPTH, --depth DEPTH (directory mode) maximum recursion depth, default: 100
+  -u, --update            (directory mode) rewrite existing .lrc files inside the
+                          output directory
+  --bfs                   (directory mode) use breadth first search for scanning
+                          directory
+  -q, --quiet             suppress logging output
+  --token TOKEN           musixmatch token
 ```
 
 ## Example:
@@ -46,19 +54,18 @@ mxlrc -s adele,hello "the killers,mr. brightside" -o some_directory
 ```
 mxlrc -s example_input.txt -t 20
 ```
-### With a directory containing music files
+### Directory Mode (recursive)
 ```
-mxlrc -s "Dream Theater/Images and Words (1992)" -t 20
+mxlrc -s "Dream Theater"
 ```
 > **_This option overrides the `-o/--outdir` argument which means the lyrics will be saved in the same directory as the given input._**
+
+> **_The `-d/--depth` argument limit the depth of subdirectory to scan. Use `-d 0` or `--depth 0` to only scan the specified directory._**
 
 ---
 
 ## How to get the Musixmatch Token
 Follow steps 1 to 5 from the guide [here](https://spicetify.app/docs/faq#sometimes-popup-lyrics-andor-lyrics-plus-seem-to-not-work) to get a new Musixmatch token.
-
-## To Do
-- [x] Directory containing music files as input
 
 ## Credits
 * [Spicetify Lyrics Plus](https://github.com/spicetify/spicetify-cli/tree/master/CustomApps/lyrics-plus)

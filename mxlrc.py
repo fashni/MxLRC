@@ -3,7 +3,9 @@ import json
 import logging
 import math
 import os
+import re
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -108,23 +110,22 @@ class Musixmatch:
         return False
     logging.info("Formatting lyrics")
     tags = [
-      "[by:fashni]",
-      f"[ar:{song.artist}]",
-      f"[ti:{song.title}]",
+      "[by:fashni]\n",
+      f"[ar:{song.artist}]\n",
+      f"[ti:{song.title}]\n",
     ]
     if song.album:
-      tags.append(f"[al:{song.album}]")
+      tags.append(f"[al:{song.album}]\n")
     if song.duration:
-      tags.append(f"[length:{int((song.duration/1000)//60):02d}:{int((song.duration/1000)%60):02d}]")
+      tags.append(f"[length:{int((song.duration/1000)//60):02d}:{int((song.duration/1000)%60):02d}]\n")
 
-    lrc = [f"[{line['minutes']:02d}:{line['seconds']:02d}.{line['hundredths']:02d}]{line['text']}" for line in lyrics]
+    lrc = [f"[{line['minutes']:02d}:{line['seconds']:02d}.{line['hundredths']:02d}]{line['text']}\n" for line in lyrics]
     lines = tags + lrc
 
-    fn = filename or f"{song}.lrc"
-    filepath = os.path.join(outdir, fn)
+    fn = filename or f"{song}"
+    filepath = os.path.join(outdir, slugify(fn)) + ".lrc"
     with open(filepath, "w", encoding="utf-8") as f:
-      for line in lines:
-        f.write(line + '\n')
+      f.writelines(lines)
     print(f"Lyrics saved: {filepath}")
     return True
 
@@ -226,7 +227,7 @@ def parse_input(argsong, update=False, depth_limit=100, bfs=False):
         continue
 
       logging.info(f"Adding {f.name}")
-      songs['filenames'].append(os.path.splitext(f.path)[0] + '.lrc')
+      songs['filenames'].append(os.path.splitext(f.path)[0])
       songs['artists'].append(song_file.artist)
       songs['titles'].append(song_file.title)
       songs['count'] += 1
@@ -336,6 +337,17 @@ def rename_logging_level_names():
     else:
       name = logging.getLevelName(level).lower()
     logging.addLevelName(level, name)
+
+
+# https://github.com/django/django/blob/main/django/utils/text.py
+def slugify(value, allow_unicode=False):
+  value = str(value)
+  if allow_unicode:
+    value = unicodedata.normalize("NFKC", value)
+  else:
+    value = (unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii"))
+  value = re.sub(r"[^\w\s-]", "", value)
+  return re.sub(r"[-]+", "-", value).strip("-_")
 
 
 if __name__ == "__main__":

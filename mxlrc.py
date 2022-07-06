@@ -123,7 +123,7 @@ class Musixmatch:
     lines = tags + lrc
 
     fn = filename or f"{song}"
-    filepath = os.path.join(outdir, slugify(fn, allow_unicode=True)) + ".lrc"
+    filepath = os.path.join(outdir, slugify(fn)) + ".lrc"
     with open(filepath, "w", encoding="utf-8") as f:
       f.writelines(lines)
     print(f"Lyrics saved: {filepath}")

@@ -340,12 +340,9 @@ def rename_logging_level_names():
 
 
 # https://github.com/django/django/blob/main/django/utils/text.py
-def slugify(value, allow_unicode=False):
+def slugify(value):
   value = str(value)
-  if allow_unicode:
-    value = unicodedata.normalize("NFKC", value)
-  else:
-    value = (unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii"))
+  value = unicodedata.normalize("NFKC", value)
   value = re.sub(r"[^\w\s-]", "", value)
   return re.sub(r"[-]+", "-", value).strip("-_")
 

@@ -182,7 +182,7 @@ def parse_args():
 
 
 def init_args(args):
-  args.songs, args.mode = parse_input(args.song, update=args.update, depth_limit=args.depth, bfs=args.bfs)
+  args.songs, args.mode = parse_input(args)
   if args.songs['count'] == 0:
     logging.warning("No valid input provided, exiting...")
     return
@@ -199,13 +199,13 @@ def init_args(args):
   return args
 
 
-def parse_input(argsong, update=False, depth_limit=100, bfs=False):
+def parse_input(args, update=False, depth_limit=100, bfs=False):
   def get_song_dir(directory, songs=None, update=False, depth_limit=100, depth=0, bfs=False):
     logging.info(f"Scanning directory: {directory}")
     logging.debug(f"Max depth: {depth_limit} - Current depth: {depth}")
     files = sorted([f for f in os.scandir(directory)], key=lambda x: x.is_dir() if bfs else x.is_file())
     if songs is None:
-      songs = {'filenames': [], 'artists': [], 'titles': [], 'count': 0}
+      songs = {'paths': [], 'filenames': [], 'artists': [], 'titles': [], 'count': 0}
 
     for f in files:
       if os.path.splitext(f.path)[-1].lower() == '.lrc':
@@ -227,23 +227,25 @@ def parse_input(argsong, update=False, depth_limit=100, bfs=False):
         continue
 
       logging.info(f"Adding {f.name}")
-      songs['filenames'].append(os.path.splitext(f.path)[0])
+      songs['paths'].append(directory)
+      songs['filenames'].append(os.path.splitext(f.name)[0])
       songs['artists'].append(song_file.artist)
       songs['titles'].append(song_file.title)
       songs['count'] += 1
     return songs
 
-  def get_song_txt(txt):
+  def get_song_txt(txt, save_path=""):
     with open(txt, 'r', encoding='utf-8') as f:
       song_list = [s.replace('\n', '') for s in f.readlines()]
-    return get_song_multi(song_list)
+    return get_song_multi(song_list, save_path)
 
-  def get_song_multi(song_list):
-    songs = {'filenames': [], 'artists': [], 'titles': [], 'count': 0}
+  def get_song_multi(song_list, save_path=""):
+    songs = {'paths': [], 'filenames': [], 'artists': [], 'titles': [], 'count': 0}
     for song in song_list:
       artist, title = validate_input(song)
       if artist is None or title is None:
         continue
+      songs['paths'].append(save_path)
       songs['filenames'].append('')
       songs['artists'].append(artist)
       songs['titles'].append(title)
@@ -258,15 +260,15 @@ def parse_input(argsong, update=False, depth_limit=100, bfs=False):
       return None, None
     return artist, title
 
-  if len(argsong) == 1:
-    if os.path.isdir(argsong[0]):
+  if len(args.song) == 1:
+    if os.path.isdir(args.song[0]):
       logging.debug('Mode: Directory')
-      return get_song_dir(argsong[0], update=update, depth_limit=depth_limit, bfs=bfs), "dir"
-    if os.path.isfile(argsong[0]):
+      return get_song_dir(args.song[0], update=args.update, depth_limit=args.depth, bfs=args.bfs), "dir"
+    if os.path.isfile(args.song[0]):
       logging.debug('Mode: Text')
-      return get_song_txt(argsong[0]), "text"
+      return get_song_txt(args.song[0], args.outdir), "text"
   logging.debug('Mode: CLI')
-  return get_song_multi(argsong), "cli"
+  return get_song_multi(args.song, args.outdir), "cli"
 
 
 def get_lrc(mx, song, outdir, fn=''):
@@ -291,10 +293,10 @@ def main(args):
 
   songs = [Song(ar or "", ti or "") for ar, ti in zip(args.songs['artists'], args.songs['titles'])]
   failed = []
-  for idx, (song, fn) in enumerate(zip(songs, args.songs['filenames'])):
+  for idx, (song, fn, outdir) in enumerate(zip(songs, args.songs['filenames'], args.songs['paths'])):
     c = idx
     try:
-      success = get_lrc(mx, song, args.outdir, fn)
+      success = get_lrc(mx, song, outdir, fn)
       if not success:
         failed.append(song)
 
@@ -343,7 +345,7 @@ def rename_logging_level_names():
 def slugify(value):
   value = str(value)
   value = unicodedata.normalize("NFKC", value)
-  value = re.sub(r"[^\w\s-]", "", value)
+  value = re.sub(r"[^\w\s()'-]", "", value)
   return re.sub(r"[-]+", "-", value).strip("-_")
 
 

@@ -122,8 +122,8 @@ class Musixmatch:
     lrc = [f"[{line['minutes']:02d}:{line['seconds']:02d}.{line['hundredths']:02d}]{line['text']}\n" for line in lyrics]
     lines = tags + lrc
 
-    fn = filename or f"{song}"
-    filepath = os.path.join(outdir, slugify(fn)) + ".lrc"
+    fn = filename or slugify(f"{song}")
+    filepath = os.path.join(outdir, fn) + ".lrc"
     with open(filepath, "w", encoding="utf-8") as f:
       f.writelines(lines)
     print(f"Lyrics saved: {filepath}")

@@ -3,6 +3,13 @@ Command line tool to fetch synced lyrics from [Musixmatch](https://www.musixmatc
 
 ---
 
+## Go version
+I'm currently learning Go and I cannot think of a project to start with. So I decided to rewrite this script in Go.
+
+[Check it out here](https://github.com/fashni/MxLRC-Go)
+
+---
+
 ## Downloads
 ### Standalone binary
 Download from [Release page](https://github.com/fashni/MxLRC/releases)
